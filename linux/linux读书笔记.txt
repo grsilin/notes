@@ -1,0 +1,186 @@
+软件安装方式
+	从源代码安装软件：
+		首先用make clean 或make distclean 去除目标文件(*.o)
+		第一步：configure
+		它被用来检查待安装源码的linux系统的相关软件属性，创建Makefile文件。
+		第二步：make
+		make根据Makefile的指示进行编译，利用gcc将源码编译成目标文件，这些目标文件通过函数库连接产生一个完整的可执行文件。
+		第三步：make install
+		make根据Makefile文件里面关于install的项目，将上一个步骤所编译完成的文件安装到预定的目录中
+	软件管理工具 ：rpm和dpkg
+		rpm(Red Hat Package Manager) 
+		命名规则：名称-版本-修正版-类型
+		安装：rpm -jvh<packname>
+		查询：rpm -aq xxx*    使用rpm -ql <packname>查找些软件向系统里写入的文件列表
+		卸载：rpm -e<packname>
+		dpkg(debian Package)
+		命名规则：名称-版本-修正版-类型
+		安装:dpdk -i<packname>
+		查询：dpkg -l xxx* 查找系统中属于xxx软件的文件
+		卸载：dpkg -e<packname>
+	线上升级：
+		apt:适用于dpkg管理机制
+		yum 适用于rpm管理机制
+		yum机制示意：
+				createrepor或者yum-arch命令			提供访问一个或多个仓库的方法，
+				释放或编码yum信赖的元数据，			可以访问到repository树
+				创建repository
+							|								|
+							|								|
+							|								|
+						---------------------------------------
+						|			y u m 服 务 器			   |
+						----------------------------------------
+						获取|							|获取
+						软件|							|软件
+						列表|							|安装
+							|							|包
+							----->	linux客户端	<--------
+										|
+										|
+									软件清单
+		操作：
+					yum							apt-get
+				
+		安装	yum install <packname>		apt-get install
+
+		升级	yum update <packname>		apt-get update 刷新软件源
+											apt-get upgrade 升级所有软件包
+
+		卸载	yum remove <packname>		apt-get remove <packname>
+											apt-get purge remove <packname>缷载软件包同时清除配置
+
+		查询	查找软件包							
+				yum search <keyword>		apt-cache search <keyword> or <rerular exression>
+				列出已安装的软件包
+				yum list installed		
+				获取软件包信息
+				yum info <packname>			apt-cache show <packname>
+				列出软件包提供哪文件		获取软件包版本和软件包的信赖关系
+				yum provides <packname>		apt-cache showpkg <packname>
+				
+		清除	清除header					清理整个软件包和缓冲区
+		缓存	yum clean headers			apt-get clean
+				清除下载的rpm包				按照信赖关系清理缓冲区中多余的软件
+				yum clean packages			apt-get clean
+				清除缓存的软件包及旧headers
+				yum clean all
+		
+磁盘管理方式
+	文件系统：ExtN（2，3，4）
+	常用操作：
+	df:查看系统中所有磁盘的整体使用量
+	含义：FileSystem 文件系统，这里指磁盘分区	mount on 挂载点，具体的某个目录
+	文件系统可能是一个真正的磁盘分区（sd等设备）,逻辑分区(mapper)或真正的文件系统的名称(tmpfs)
+	du：观察局部使用量，会搜索所有的inode来计算局部数据
+	dd：直接读写磁盘扇区，或镜像整个磁盘，dd if=input_file= of=output_file   
+		复制一个文件 dd if=/etc/bashrc.sh of=./bashrc.sh
+		制作分区的镜像文件：dd if=/dev/sda of=./sda.img
+		dd if=/dev/sda |gzip -9 ./sad.img 生成镜像并压缩
+		dd gzip -dc ./sda.img | dd of=/dev/sda
+	fsck:对文件系统损坏进行修复 fsck -t 文件系统 设备名
+	mount：mount [-t 文件系统] 设备名称 挂接点 一般来说无需使用-t指定文件系统，基于inode的文件系统可可以利用超级块获取到当前的文件系统，
+	在挂载windows分区时需要用到-t指定文件系统。
+	利用 mount 同样可以挂载一个具体的文件，mount -o loop ./filename.iso /mnt/myfile
+	参数：loop 这是一个虚拟设备，并且是环形设备	ro 此挂载点是只读的 rw 只写
+	umount:卸载  umount /mnt/myfile
+	fdisk :磁盘分区命令
+	mkfs：格式化
+	/etc/fdtab	:决定磁盘的每个分区具体要挂载到哪个目录
+	其中规定了设备文件、磁盘卷标、或者UUID，挂载点，文件系统类型，mount命令的 -o 选项参数，是否使用dump命令备份，是否使用fsck命令检查磁盘，共六个参数
+	blkid:	查看设备的UUID
+	SWAP分区：	管理虚拟内存时需要用到的内存置换文件
+	使用fdisk创建分区，mkswap格式化，swapon开启此虚拟分区，swapoff关闭虚拟分区
+	逻辑卷管理器:(《linux相关》文件中详解)
+	一:硬盘分区
+	二:物理卷操作，pvcreate,pvsan,pvdisplay,pvremove
+	三:卷组操作，vgcreate,vgscan,vgdisplay,vgextendvgreduce,vgchange,vgremove
+		vgcreate /dev/hdb{1,2,3} NewVolGroup
+	四:逻辑卷操作，lvcreate,lvscan,lvdisplay,lvextend,lvreudce,lvremove,lvresize
+		lvcreate -l 3842 -n lv_data NewVolGroup		-l选项说明分配的PE数量（使用vgdisplay查看全部PEr的数量），-n 选项则为新的LV命名
+	五：格式化并挂载 mkfs.ext4 /dev/mapper/NewVolGroup-lv_data
+					mkdir /mnt/data
+					mount /dev/mapper/NewVolGroup-lv_data /mnt/data
+	六：增加逻辑卷大小：
+			vgextend VewVolGroup /dev/hda4   将一个新的物理卷加入到已有卷组中
+			lvresize -l +1247 /dev/mapper/NewVolGroup-lv_data 将新增的PE加入到逻辑卷中
+			resize2fs /dev/mapper/NewVolGroup-lv_data	格式化磁盘
+	七：减小逻辑卷大小：
+			umount /mnt/data
+			e2fsck -f /dev/mapper/NewVolGroup-lv_data	查看需要移除的分区的大小
+			resize2fs /dev/mapper/NewVolGroup-lv_data 14990M	设置缩小容量的大小
+			mount	/dev/mapper/NewVolGroup-lv_data /mnt/data	重新挂载
+			lvresize -l -count /dev/mapper/NewVolGroup-lv_data	回收PE  pvdisplay查看可以回收PE的数目
+			pvmove	from to	移动PE，使需要撤走的分区中的PE状态全部为free
+			vgreduce VewVolGroup /dev/hda1
+
+网络配置
+
+
+shell：命令解释器和执行器
+	工作控制：
+		ps		--列出正在运行的进程
+		kill	--向进程发信号
+		jobs	--列出自己运行的进程
+		bg		--将进程放到后台
+		fg		--将进程放到前台
+		在程序名后加“&”将程序放到后台运行	
+		或者输入“Control+z”暂停进程，然后输入bg(ps)可以把该进程推到后台运行
+		kill杀死进程	或使用ps找到它的pid,再用kill -9 对应的pid杀死进程
+		Kill 实际是向进程发送信号，进程收到信号后作出回应，退出操作。使用 kill -l 查看所有信号
+	
+	管道与重定向
+		“|”是管道操作符，指前一个命令的输出作为后一个命令的输入。
+		重定向通常与文件描述符有关，用“<”来改变读入的数据通道，使它从指定的文件读入；
+		用">"来改变送出的数据信道，使它输出到指定的文件
+
+环境变量：
+	启动shell时，会从启动它的/bin/login程序中继承多个变量，I/O流和进程特征。如果遇到需要后台处理、执行整组命令以及脚本的情况，
+	父shell也会派生子shell应付这些工作，子shell从父shell继承环境。
+	包括进程的权限，工作目录，文件创建掩码，特殊变量，打开的文件和信号。变量包括局部变量和环境变量。局部变量是私有的，无法传递给子shell。环境变量将被子shell所继承，
+	环境变量又包括PATH、HOME、HOGMANE、IFSTSHELL等等。通常用大写字符来表示。可以通过set、env和export设置环境变量，使用unset命令来清除设置，使用readonly来设置只读属性。
+
+bash的配置文件
+	按照启动方式，shell有两种类型，login shell 和 non-login shell ,non-login shell 不需要登录获取bash界面。
+	1、只有login shell 才会读取系统配置文件/etc/profile，它是系统整体的配置文件，该配置文件包含很多重要的信息，
+	每个用户登录取得bash后一定会读取这个配置文件。针对所有用户环境变量的修改需要在这个文件中进行。
+	用户的个性设置文件
+	login shell在读取完/etc/profile配置文件后，会读取用户的个人配置文件，顺序为~/.bashrc_profile、~/.bash_login、~/.profile，如果优先级高的文件存在则会忽略其它文件。
+	2、读取个人设置文件主要是获取与用户有关的环境、别名和函数等。
+	如果~/.bashrc存在的话，~/.bash_profile还会调用它。~/.bash_historyk中保存历史命令记录，~/.bash_logout中保存在系统退出时需要执行的操作。
+	3、用户通用设置如果/etc/bashrc存在，则会被~/.bashrc调用，可以对non-login shell 进行一些设置
+	主要有依据不同的UID给出umask、PS1值，调用/etc/profile.d/*.sh
+	对配置文件/etc/profile和~/.bash_profile的修改需要重新登录后生效，其它配置可以通过source命令将配置文件的内容读入到当前shell中
+
+文本处理
+	cat more less head tail 
+	tail 用于查看文件最后若干行的内容，不停的读取和显示文件内容
+	正则表达式
+	用来描述广西的一种特殊表达形式，拥有两个基本要素，
+	(1)表达式ε表示一个文本，仅包含一个长度为0 的字符串，也可以理解为{NULL},通常将NULL记作ε;
+	(2)对字符集中的任意字符a,表达式a表示仅有一个字符a的文本，即{a}
+	以及三种基本运算规则
+	(1)X|Y	两个正则表达式的并运算
+	(2)XY	两个正则表达式的连接,表示的是将X文本中的每个字符后面连接上Y文本中的第一个字符后，
+	再把所有这种连接的结果组成一种新的文本
+	(3)X*	一个正则表达式的克林闭包,表示分别将0个，1个，2个，.....,n个X与自己连接，然后再把所有这些要求合并。
+	优先级：克林闭包>连接运算>并运算
+	扩展运算：
+	[]	方括号，括号内的字符做并运算同时支持范围描述符“-”，[abcd]等价于a|b|c|d,等介于[a-d]
+	如果需要使用“-字符”需要在放在方括号的开头方括号中以"^"开头，表示在字符集中酿出方括号中所有字符之后，所剩字符的并运算
+	比如[^ab]表示对除了ab以外所有字符的求并
+	X?	表示X|ε,代表X与空字符串之间可选
+	X+	表示XX*限制X至少要重复一次
+
+grep 文本搜索
+	使用正则表达式来检索文件内容，包括grep,egrep,fgrep.
+	egrep是grep的扩展，支持更多的正则表达式元字符。fgrep只搜索字符串面不使用正则表达式。
+
+排序和去重
+	cut -d' '-f1 filename	从文件中以空格为分隔符(-d'')剪出第一列(-f1,如果要剪出多列，则为-f1,3等)
+	sort -d 按字典序(-d)排序 -n按数字降序排列 -r 降序排列
+	uniq -c 对文本去重，并统计次数。
+
+	
+	
+	

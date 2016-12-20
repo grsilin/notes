@@ -1,0 +1,114 @@
+https://developer.android.com/studio/projects/add-native-code.html
+http://blog.csdn.net/yanbober/article/details/45309049
+1、环境搭建
+	Eclipse:	
+	导入ndk自带Hellojni项目
+	link:http://blog.csdn.net/yanzhibo/article/details/7726997     
+	新建ndk项目
+	link:http://blog.csdn.net/yanzhibo/article/details/7727884
+	1、新建类，在其中声明本地方法，编译项目，生成class文件。
+	2、进入class目录，输入javah 包名+类名，生成.h文件，在.h文件中
+	3、按照.h文件中的声明，在.c中实现方法
+	4、使用System.loadLibraay加载so动态库
+	5、编译C/C++文件，生成so
+		新建android.mk 文件其中内容为
+		LOCAL_PAHT:=$(call my-dir)   所有mk文件首先必须定义好LOCAL_PATH变量，
+		mydir是一个编译系统提供资金的宏函数，用于返回当前路径
+		include $(CLEAR_VARS),CLEAR_VARS由编译系统提供,指定主GNU MAKEFILE为你清除许多LOCAL_XXX变量(不包括LOCAL_PATH)
+		原因：所有的的脚本都将会被拷贝到同一个上下文中执行，而且都是全局变量，因此需要在每次使用前清空以前用过的变量
+		LOCAL_MOUDLE:=soname
+		编译的目标对象，LOCAL_MOUDLE必须定义,以标识你在Android.mk文件中描述的每个模块，且名称是唯一的
+		会生成文件名为lib“soname”.so的文件，如果soname是以"lib"开头的则不会添加前缀。
+		LOCAL_SRC_FILES:=filename.c
+		包含将要编译打包进模块中的c或C++源代码文件。
+		include $(BUILD_SHARED_LIBRARY)
+		BUILD_SHARED_LIBRARY 表示编译生成的共享库，是编译系统提供的变量，指向一个GNU makefile脚本，
+		负责收集自上次调用'include $(CLEAR_VARS)'以来定义在LOCAL_XXX变量中的所有信息,并且决定编译什么，如何正确地去做。
+		BUILD_STATIC_LIBRARY变量表示生成静态库：lib$(LOCAL_MODULE).a，
+		BUILD_EXECUTABLE 表示生成可执行文件。
+	6、配置Build，指定workspace，成功编译so文件
+
+2、利用javah生成的函数的命名规则和参数
+	函数参数：
+	JNIEXPORT jstring JNICALL Java_com_study_jnilearn_HelloWorld_sayHello(JNIEnv *, jclass, jstring);
+	第一个参数：JNIEnv* 是定义任意native函数的第一个参数（包括调用JNI的RegisterNatives函数注册的函数），指向JVM函数表的指针，函数表中的每一个入口指向一个JNI函数，每个函数用于访问JVM中特定的数据结构。
+	第二个参数：调用java中native方法的实例或Class对象，如果这个native方法是实例方法，则该参数是jobject，如果是静态方法，则是jclass
+	第三个参数：Java对应JNI中的数据类型，Java中String类型对应JNI的jstring类型。（后面会详细介绍JAVA与JNI数据类型的映射关系）
+	函数返回值类型：
+	夹在JNIEXPORT和JNICALL宏中间的jstring，表示函数的返回值类型，对应Java的String类型
+	函数的命名规则：
+	用javah工具生成函数原型的头文件，函数命名规则为：Java_类全路径_方法名。
+	如Java_com_study_jnilearn_HelloWorld_sayHello，其中Java_是函数的前缀，com_study_jnilearn_HelloWorld是类名，sayHello是方法名，它们之间用 _(下划线) 连接。
+
+3、java与C/C++之间进行数据传传递
+	在jni.h中定义了java中的类型和C/C++中类型的对应关系
+	基本类型 primitive  types
+	Java类型	C/C++类型	描述
+	boolean		jboolean	无符号8位整数
+	byte		jbyte		无符号8位整数
+	char		jchar		有符号16位整数
+	short		jshort		有符号16位整数
+	int			jint		有符号32位整数
+	long		jlong		有符号64位整数
+	float		jfloat		32位单精度浮点数
+	double		jdouble		64位双精度浮点数
+	基本类型都是根据java类型大小等价转换的。因此可以在C/C++中直接使用(可以直接使用作为参数的变量和直接作返回值)
+	引用类型 reference types
+	Java类型	C/C++类型		描述
+	Objec		jobject			任何Java对象
+	Class		jclass			Class类对象
+	String		jstring			String类对象
+	Object[]	jobjectArray	对象数组
+	boolean[]	jbooleanArray	布尔数组
+	byte[]		jbyteArray		字节数组
+	char[]		jcharArray		字符型数组
+	short[]		jshortArray		短整型数组
+	int[]		jintArray		整型数组
+	long[]		jlongArray		长整型数组
+	float[]		jfloatArray		浮点型数组
+	double[]	jdoubleArray	双精度浮点型数组
+	可以看出，所有的数组类型包括基本类型和引用类型的数组在jni中都是引用类型
+	引用类型传递到C/C++时只是一个指向java对象的指针，因此不能直接引用，使用JNIEnv可以进行转换
+	String类型的转换：
+	<-----
+	GetStringUTFChars将jstring转换成为UTF-8格式的char*
+	GetStringChars将jstring转换成为Unicode格式的char*
+	ReleaseStringUTFChars释放指向UTF-8格式的char*的指针
+	ReleaseStringChars释放指向Unicode格式的char*的指针
+	NewStringUTF创建一个UTF-8格式的String对象
+	NewString创建一个Unicode格式的String对象
+	GetStringUTFLengt获取 UTF-8格式的char*的长度　
+	GetStringLength获取Unicode格式的char*的长度
+	------>
+	
+	const char *c_str = NULL;
+	c_str = (*env)->GetStringUTFChars(env, j_str, NULL);
+	//将jstring转换成为UTF-8格式的char*
+	if (c_str == NULL) {
+		return NULL;//，异常检查，可能会有OutOfMemoryError，在jni中遇到错误时不会立即停止程序，此时无法操作该字符串
+	}
+	LOGI("%s", c_str);
+	(*env)->ReleaseStringUTFChars(env, j_str, c_str);
+	char buff[128] = { 0 };
+	sprintf(buff, "hello %s~~~~~~~", c_str);
+	//对char*进行格式化
+	return  (*env)->NewStringUTF(env, buff);
+	//创建一个UTF-8格式的String对象
+	
+	
+	
+	
+字符串操作总结：
+	1、对于小字符串来说，GetStringRegion和GetStringUTFRegion这两对函数是最佳选择，因为缓冲区可以被编译器提前分配，而且永远不会产生内存溢出的异常。当你需要处理一个字符串的一部分时，使用这对函数也是不错。因为它们提供了一个开始索引和子字符串的长度值。另外，复制少量字符串的消耗 也是非常小的。
+	2、使用GetStringCritical和ReleaseStringCritical这对函数时，必须非常小心。一定要确保在持有一个由 GetStringCritical 获取到的指针时，本地代码不会在 JVM 内部分配新对象，或者做任何其它可能导致系统死锁的阻塞性调用
+	3、获取Unicode字符串和长度，使用GetStringChars和GetStringLength函数
+	4、获取UTF-8字符串的长度，使用GetStringUTFLength函数
+	5、创建Unicode字符串，使用NewStringUTF函数
+	6、从Java字符串转换成C/C++字符串，使用GetStringUTFChars函数
+	7、通过GetStringUTFChars、GetStringChars、GetStringCritical获取字符串，这些函数内部会分配内存，必须调用相对应的ReleaseXXXX函数释放内存
+	
+	
+	
+	引入多个so:
+	http://blog.csdn.net/sunnyfans/article/details/12952113
+	

@@ -1,0 +1,2 @@
+使用Git Hooks实现开发部署任务自动化
+http://blog.csdn.net/zstack_org/article/details/53100257
