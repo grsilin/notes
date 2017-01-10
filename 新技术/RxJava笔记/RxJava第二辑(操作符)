@@ -1,0 +1,211 @@
+** 操作符
+*** 转换操作符
+ ***map()***接受一个`Func1`类型的参数，,然后吧这个Func1应用到每一个由Observable发射
+ 的值上，将发射的值转换为我们期望的值。
+ ![Alt text](./8f252f8b8c7a439470b7134ec0b860dd_r.png)
+
+ ***flatMap()***进行一对多的转换。
+ 原理：
+ 1. 将传入的事件对象装换成一个Observable对象；
+ 2. 这是不会直接发送这个Observable, 而是将这个Observable激活让它自己开始发送事件；
+ 3. 每一个创建出来的Observable发送的事件，都被汇入同一个Observable，这个`Observable`
+ 负责将这些事件统一交给Subscriber的回调方法。
+ ![Alt text](./0f4a183b288b552ed861ac688a41c5a1_r.png)
+ ***concatMap()***解决了flatMap()的交叉问题，它能够把发射的值连续在一起
+ ![Alt text](./108bbbf1f4c3257180f26ed85fb264fa_b.png)
+
+ FlatMapIterable
+ ***flatMapIterable()***和flatMap()几乎是一样的，不同的是flatMapIterable()它转化的
+ 多个`Observable`是使用Iterable作为源数据的。
+        Observable.from(communities)
+        .flatMapIterable(new Func1<Community, Iterable<House>>() {
+           @Override
+           public Iterable<House> call(Community community) {
+               return community.houses;
+           }
+           })
+           .subscribe(new Action1<House>() {
+           @Override
+           public void call(House house) {
+
+           }
+         });
+
+ ***switchMap()***与flatMap()的区别在于：每当源Observable发射一个新的
+ 数据项（Observable）时，它将取消订阅并停止监视之前那个数据项产生的Observable，
+ 并开始监视当前发射的这一个。
+ ![Alt text](./1f51dd6566357d2942e3a271855202b6_b.png)
+ ***scan()***对一个序列的数据应用于一个函数，并将这个函数的结果发射出去作为下个数据应用
+ 合格函数时的第一个参数使用。
+ ![Alt text](./da0ac9c32e2ad0344ba287058d624e26_b.png)
+ ***groupBy（）***)将原始Observable发射的数据按照key来拆分成一些小的Observable，
+ 然后这些小Observable分别发射其所包含的的数据，和SQL中的groupBy类似。
+ ![Alt text](./b83d9ac26c51aa6de318dd54341ff519_r.png)
+
+        //创建一个Observerable,groupByCommunityNameObservable,它将会发送一个带有
+        GroupedObservable<House,String>的序列，GroupedObservable是一个特殊的Observable，它基于一个分组的key
+        List<House> houses = new ArrayList<>();
+        houses.add(new House("中粮·海景壹号", "中粮海景壹号新出大平层！总价4500W起"));
+        houses.add(new House("竹园新村", "满五唯一，黄金地段"));
+        houses.add(new House("中粮·海景壹号", "毗邻汤臣一品"));
+        houses.add(new House("竹园新村", "顶层户型，两室一厅"));
+        houses.add(new House("中粮·海景壹号", "南北通透，豪华五房"));
+        Observable<GroupedObservable<String, House>> groupByCommunityNameObservable = Observable.from(houses)
+         .groupBy(new Func1<House, String>() {
+
+             @Override
+             public String call(House house) {
+                 return house.communityName;
+             }
+         });
+        //通过contack()方法创建新的Observer，并订阅Observer
+         Observable.concat(groupByCommunityNameObservable)
+         .subscribe(new Action1<House>() {
+            @Override
+            public void call(House house) {
+                System.out.println("小区:"+house.communityName+"; 房源描述:"+house.desc);
+            }
+         });
+
+
+*** 过滤操作符
+ 对事件数据的筛选过滤，只返回满足条件的数据
+ * filter
+    ***filter(Func1)***用来过滤序列中不满足条件的值。
+        Observable.from(communities)
+          .filter(new Func1<Community, Boolean>() {
+              @Override
+              public Boolean call(Community community) {
+                  return community.houses.size()>10;
+              }
+          }).subscribe(new Action1<Community>() {
+          @Override
+          public void call(Community community) {
+              System.out.println(community.name);
+          }
+       });
+ * take
+ ***take(int)***用一个整数做为参数，选择序列中指定的前count个元素。
+
+ * takeLast()
+ takeLast(int)同样用一个整数n作为参数，只不过它发射的是观测序列中后n个元素。
+
+ *takeUtil(Observable)
+ 订阅observer后observable开始发送事件，使用`takeUtils()`同时订阅一个用于监控的
+ `Observable`,当这个这个`Observable`开始发送数据或发送停止通知时，takeUtil返回的
+ Observable会阻断原Observable发送事件。
+
+ * takeUtil(Func1)
+ 通过Func1返回的结果判断是否需要阻断Observer发送事件。
+
+ * skip(int) && skipLast(int)
+ 忽略Observable发送的前或后n个事件。
+
+ * elementAt(int)
+ Observable只发送位于第n位的事件。
+
+ * debounce
+ debounce(long, TimeUnit)过滤掉了由Observable发射的速率过快的数据；
+ 如果在一个指定的时间间隔过去了仍旧没有发射一个，那么它将发射最后的那个。
+ 通常我们用来结合RxBinding使用，防止button重复点击。
+
+ debounce(Func1)可以根据Func1的call方法中的函数来过滤，Func1中的中的call方法返回了
+ 一个临时的Observable，如果原始的Observable在发射一个新的数据时，上一个数据根据Func1的
+ call方法生成的临时Observable还没结束，那么上一个数据就会被过滤掉。
+ ![Alt text](./5669c1a93d4b60e03b7943647c4b9849_b.png)
+
+ * distinct
+ distinct()只拦截重复的数据。distinct(Func)通过Func返回的结果判断两个结果是否相同。
+
+ * distinctUtilChanged
+ 拦截与前一个数据相同的数据。同样可以使用distinct(Func)来自定义判断条目。
+
+ * first
+ `first`只发送 Observable中的第一个数据。`first(Func)`发送满足条件的第一项。
+
+ *last
+ 用法同first
+
+
+*** 组合操作符
+  * merge
+ ***merge(Observable, Observable)***将两个Observable发射的事件序列组合并成一个事件
+ 序列，就像是一个Observable发射的一样。你可以简单的将它理解为两个Obsrvable合并成了
+ 一个Observable，合并后的数据是无序的。
+ ***merge(Observable[])***将多个Observable发射的事件序列组合并成一个事件序列，
+ 就像是一个Observable发射的一样。(顺序为Observable激活顺序)
+ ![Alt text](./196946acb57a45a2272c06b426c5a854_b.png)
+
+ * startWith
+ ***startWith(T)***用于在源Observable发射的数据前插入数据。使用`startWith(Iterable<T>`
+ 在源Observable发送的数据前插入Iterable。
+ startWith还适用于Observable，`startWith(Observable)`将此observable中的数据插入到
+ 源Observable之前。
+
+ * contact
+ ***concat(Observable<? extends T>, Observable<? extends T>) concat(Observable<？ extends Observable<T>>)***
+ 用于将多个obserbavle发射的的数据进行合并发射，concat严格按照顺序发射数据，
+ 前一个Observable没发射完是不会发射后一个Observable的数据的。它和merge、startWitch和相似，不同之处在于：
+ merge:合并后发射的数据是无序的；
+ startWitch:只能在源Observable发射的数据前插入数据。
+
+ * zip
+ zip(Observable, Observable, Func2)用来合并两个Observable发射的数据项，
+ 根据Func2函数生成一个新的值并发射出去。当其中一个Observable发送数据结束或者出现异常后，
+ 另一个Observable也将停在发射数据。
+ ![Alt text](./232dda4d4440a30b737b720fde2b0fde_r.png)
+
+          String[] letters = new String[]{"A", "B", "C", "D", "E", "F", "G", "H"};
+          Observable<String> letterSequence = Observable.interval(120, TimeUnit.MILLISECONDS)
+                .map(new Func1<Long, String>() {
+                    @Override
+                    public String call(Long position) {
+                        return letters[position.intValue()];
+                    }
+                }).take(letters.length);
+          Observable<Long> numberSequence = Observable.interval(200, TimeUnit.MILLISECONDS).take(5);
+          Observable.zip(letterSequence, numberSequence, new Func2<String, Long, String>() {
+              @Override
+              public String call(String letter, Long number) {
+                  return letter + number;
+              }
+              }).subscribe(new Observer<String>() {
+              @Override
+              public void onCompleted() {
+                  System.exit(0);
+              }
+
+              @Override
+              public void onError(Throwable e) {
+                  System.out.println("Error:" + e.getMessage());
+              }
+
+              @Override
+              public void onNext(String result) {
+                  System.out.print(result + " ");
+              }
+            });
+
+
+ * combineLatest
+ ***combineLatest(Observable, Observable, Func2)**用于将两个Observale最近发射的数据
+ 由Func2函数的规则进展组合。
+
+ * SwitchOnNext
+ ***switchOnNext(Observable<? extends Observable<? extends T>>***将多个小Observalbe
+ 的源转换为一个Observable,然后发射所有Observable的数据，如果一个小Observable在发射数据
+ 的时候又有一个新的Observable开始发射数据，则前一个Observable发射的数据会被直接丢弃，而
+ 直接发射新Observable的数据。
+
+ * join
+ ***join(Observable,Func1,Func1,Func2)***中
+  Observable：源Observable需要组合的Observabl
+  Func1：接收从源Observable发射来的数据，并返回一个Observable，这个Observable的生命周期
+  决定了源Obsrvable发射出来的数据的有效期，是源Observable的目标Observer。
+  Func1：接收目标Observable发射来的数据，并返回一个Observable，这个Observable的生命周期
+  决定了目标Obsrvable发射出来的数据的有效期；
+  Func2：接收从源Observable和目标Observable发射出来的数据，并将这两个数据组合后返回。
+  ![Alt text](./bac3ad76da94024d15a20eafa0360ba6_r.png)
+
+  [rxmarbles](http://rxmarbles.com/ "RxJava操作符动态图")
+  

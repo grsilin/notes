@@ -1,0 +1,193 @@
+# 简介
+ ## 响应式编程
+ > 响应式编程是一种基于异步数据流概念的编程模式。数据流就像一条河：它可以被观测，被过滤，被操作，或者为新的消费者与另外一条流合并为一条新的流。
+
+ 响应式编程的一个关键概念是事件，事件可以被等侍， 可以触发过程，也可以触发其它事件。
+ 事件是唯一的以合适的将现实的方式映射到我们的软件中方式。
+
+ ## RxJava
+ RxJava本质上是一个异步操作库，是一个能让你用极其简洁的逻辑去处理繁琐复杂任务的异步事件库。
+
+ ## 观察者模式
+ RxJava的异步实现正是基于观察者模式来实现的，而且是一种扩展的观察者模式。观察者模式基于
+ `Subject`的概念，`Subject`是一种特殊的对象，被称作被`观察者`。当它改变时，由它保存的
+ 一系列对象将会得到通知，在`Subject`中保存的一系列对象就是`Observer`观察者，它们对象暴露了个通知的方法，当`Subject`的状态发生变化时会调用这个方法。
+
+ ![uml](./uml_observer.png "观察者模式")
+
+ <center>Observer</center>
+ 应用场景：
+  1. 当你的架构有两个实体类，一个依赖另一个，你想让它们互不影响或者是独立复用它们时。
+  2. 当一个变化的对象通知那些与它自身变化相关联的未知数量的对象时。
+  3. 当一个变化的对象通知那些无需推断具体类型的对象时。
+
+ ## 扩展的观察者模式
+  在RxJava中主要有四个角色
+  * Observable
+  * Subject
+  * Observer
+  * Subsriber
+  其中`Observable`和`Subject`是两个**生产**实体，`Observer`和`Subsriber`是两个**消费**实体。
+  Observable对应于观察者模式中的**被观察者**，而Observer和Subscriber对应于观察者模式中的**观察者**。
+  观察者`Observer`和被观察者`Observable`通过subscribe()方法实现订阅关系。从而`Observable`可以在需要的时候发出事件来通知`Observer`。
+
+
+  ## 如何使用RxJava
+  ***1.创建观察者***
+
+
+      Observer<Object> observer = new Observer<Object>() {
+
+          @Override
+          public void onCompleted() {
+
+          }
+
+          @Override
+          public void onError(Throwable e) {
+
+          }
+
+          @Override
+          public void onNext(Object s) {
+
+          }
+        };
+
+  RxJava中观察者Observer提供了:onNext()、 onCompleted()和onError()三个方法。
+  <ol> <li>RxJava中规定当不再有新的事件发出时，可以调用onCompleted()方法作为标示；
+  <li>当事件处理出现异常时框架自动触发onError()方法；
+  <li>同时Observables支持链式调用，从而避免了回调嵌套的问题。
+  <ol>
+
+   ***2.创建被观察者***
+  `Observable`即被观察者，它决定什么时候触发事件以及触发什么样的事件。*RxJava*使用
+  `create()`创建被观察者，并在`call()`中定义事件触发规则。
+
+    Observable<Object> observable = Observable.create(new Observable.OnSubscribe<Object>() {
+      @Override
+      public void call(Subscriber<? super Object> subscriber) {
+        }
+      });
+  创建`Observable`时将一个`OnSubscriber`对象作为参数，这个对象会被存储在返回的`Observable`对象中，
+  它的作用相当于一个计划表，当`Observable`被订阅的时候，`onSubscriber`的`call`方法将会被调用，
+  事件序列就会依照设定次序触发。这样由被观察者调用观察者方法，实现了由被观察者向观察者的事件传递。
+  除了`create()`,`just()`和`from()`同样可以创建`Observable`对象。
+  `just(T...)`:将传入的参数依次发送出来，如`just(arg1,arg2,arg3)`
+  `from(T[])``/`from(Iterable<? extends T>)`:将传入的数组或`Iterable`拆分成具体对象后依次发送出来。
+
+ ***3.Subscribe***
+ 使用`subscribe()`方法将`Observable`和`Observer`/`Subscriber`联结起来。
+ 订阅`subscribe`时将会调用'onStart()'方法和`call()`方法。`onStart()`方法是一个可选方法，可以在其中做订阅之前的初始化等动作。
+ `call()`方法被调用代表事件发送逻辑开始运行。
+ 传入的`Observer`/`Subscriber`对象作为`Subscription`返回，保存在`Observable`中，进行方法的调用和`unSubscribe()`
+
+ 除了`subscribe(Observer)` 和 `subscribe(Subscriber)`，`subscribe()`还支持不完整定义的回调，RxJava 会自动根据定义创建出`Subscriber`。
+
+
+    Action1<String> onNextAction = new Action1<String>() {
+      // onNext()
+      @Override
+      public void call(String s) {
+          Log.d(tag, s);
+      }
+      };
+      Action1<Throwable> onErrorAction = new Action1<Throwable>() {
+      // onError()
+      @Override
+      public void call(Throwable throwable) {
+          // Error handling
+      }
+      };
+      Action0 onCompletedAction = new Action0() {
+      // onCompleted()
+      @Override
+      public void call() {
+          Log.d(tag, "completed");
+      }
+      };
+
+      // 自动创建 Subscriber ，并使用 onNextAction 来定义 onNext()
+      observable.subscribe(onNextAction);
+      // 自动创建 Subscriber ，并使用 onNextAction 和 onErrorAction 来定义 onNext() 和 onError()
+      observable.subscribe(onNextAction, onErrorAction);
+      // 自动创建 Subscriber ，并使用 onNextAction、 onErrorAction 和 onCompletedAction 来定义 onNext()、 onError() 和 onCompleted()
+      observable.subscribe(onNextAction, onErrorAction, onCompletedAction);
+
+ `Action0`是*RxJava*的一个接口，它只有一个方法`call()`，它是无参、无返回值的，由于`onComplete()`也是无参无返回值的，因此可以将`Action0`作为
+ 一个包装对象，将`onComplete()`的内容打包起来将自己做为一个参数传入`Subscribe`以实现不完整定义的回调。
+ `Action1`也是一个接口，同样只一个`call()`方法，这个方法没有返回值，只有一个参数，和`Subscriber`/`Observer`中的`onNext()`,`onError()`匹配，
+ 因此可以将`Action1`类型的`onNext`和`onError`传入`subscribe()`以实现不完整定义的回调。
+ RxJava提供多个`ActionX`接口,用以包装不同参数个数的无返回值的方法。
+
+ > 在Rxjava中，`Observer`和`Subscriber`具有相同的角色，而且`Observer`中`subscribe()`（订阅）的
+ 过程中会被转换成`Subscriber`。
+
+  ## 线程控制--Scheduler
+  在不指定线程的情况下，RxJava遵循线程不变原则，即在哪个线程执行订阅`subscribe`操作，在同一进行中产生和消费事件。
+  切换线程需要用到`Scheduler`
+  `Scheduler`可以指定每一段代码在什么进程中运行，RxJava中内置的`Scheduler`有：
+  `Schedulers.immediate()`:在当前线程运行，不切换线程。默认的`Scheduler`
+  `Scheduler.newThread()`:启用新线程，并在新线程执行操作。
+  `Scheduler.io()`:I/O 操作（读写文件、读写数据库、网络信息交互等）所使用的 Scheduler。
+  行为模式和 newThread() 差不多，区别在于 io() 的内部实现是是用一个无数量上限的线程池，
+  可以重用空闲的线程，因此多数情况下 io() 比 newThread() 更有效率。不要把计算工作放在 io() 中，可以避免创建不必要的线程。
+  `Schedulers.computation()``: 计算所使用的 Scheduler。这个计算指的是 CPU 密集型计算，
+  即不会被 I/O 等操作限制性能的操作，例如图形的计算。这个 Scheduler 使用的固定的线程池，
+  大小为 CPU 核数。不要把 I/O 操作放在 computation() 中，否则 I/O 操作的等待时间会浪费 CPU。
+  `AndroidSchedulers.mainThread()`Android 还有一个专用线程 ，它指定的操作将在 Android 主线程运行。
+
+    Observable.just(1, 2, 3, 4)
+      .subscribeOn(Schedulers.io()) // 指定 subscribe() 发生在 IO 线程
+      .observeOn(AndroidSchedulers.mainThread()) // 指定 Subscriber 的回调发生在主线程
+      .subscribe(new Action1<Integer>() {
+          @Override
+          public void call(Integer number) {
+              Log.d(tag, "number:" + number);
+          }
+    });
+
+
+  `subscriberOn(Scheduler.io())`指定了被创建的事件的内容将会在`I/O`线程发出，
+  `observeOn(AndroidSchedulers.mainThread())`指定了指印的操作将会在`mainThread`，也就是UI线程中进行。
+
+  ## 变换：Scheduler原理
+  **将事件序列中的对象或整个序列进行加工处理，转换成不同的事件或事件序列。**
+
+    Observable.just("images/logo.png") // 输入类型 String
+    .map(new Func1<String, Bitmap>() {
+      @Override
+      public Bitmap call(String filePath) { // 参数类型 String
+          return getBitmapFromPath(filePath); // 返回类型 Bitmap
+          }
+      })
+      .subscribe(new Action1<Bitmap>() {
+          @Override
+          public void call(Bitmap bitmap) { // 参数类型 Bitmap
+              showBitmap(bitmap);
+          }
+      });
+
+  `Func1`:RxJava的一个接口，类似于`Action1`,区别在于`ActionX`用于包装有返回值的方法。
+  `map()`:在上而的例子中map接收一个String类型的参数，返回一个Bitmap类型的对象，完成了类型的变换。
+  `flatMap()`：使用传入的对象创建`Observable`,这个被观察者不会被直接返回，而是被激活，开始发送事件。
+    每一个创建的`Observable`都将事件发送到一个统一的`Observable`中，最后由这个`Observable`将事件发发送给
+    订阅的`Observable`/`Subscriber`。
+
+ ## 线程的自由控制
+ 多次切换线程：因为`subscribe(subscriber)`中指定的`subscriber`订阅者并不一定是`observeOn(subscriber)`指定的同一个对象
+ （当map(),flatMap()这样的情况存在时），因此只需要调用`observeOn()`即可切换线程，
+ 但是需要是在`map()`,`flatMap()`等进行转换，会产生新的`Observable`时。
+ > subscribeOn() 只能调用一次。
+ 详细分析。。。不理解，暂时不记录。
+
+ ## RxJava 的适用场景和使用方式
+ ### 1. 与 Retrofit 的结合
+
+ ### 2. RxBinding
+
+ ### 3. 各种异步操作
+
+ ### 4. RxBus
+
+  原文链接：http://gank.io/post/560e15be2dca930e00da1083

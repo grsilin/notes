@@ -35,3 +35,11 @@
   <li>onClick会发生的前提是View是可点击的，并且它收到了`UP`和`DOWN`事件。
   <li>事件传递的过程是由外向内的，即事件总是先传递给父元素，再由父元素传弟给子，通过`requestDisallowInterceptTouchEvent`方法在子view中干扰父元素的事件分发过程(在`down`事件中会调用`resetTouchState`清除子view的设置)
 <ol>
+### View的滑动冲突
+  常见冲突场景：
+    1、外部滑动方向和内部滑动方向不一致
+    2、外部滑动方向和内部滑动方向一致
+    3、前两种情况的嵌套
+  滑动冲突的解决方式：
+    外部拦截法：重写父容器的`onInterceptTouchEvent`方法，由父容器决定是否拦截事件。
+    内部拦截法：重写子元素的`dispatchTouchEvent`方法，配合`requestDisallowInterceptTouchEvent`来实现。父容器拦截除`ACTION_DOWN`以外的所有事件，在子元素中将不需要的事件通过`requestDisallowInterceptTouchEvent`交由父容器拦截。

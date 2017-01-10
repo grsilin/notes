@@ -1,0 +1,346 @@
+## 一、执行流程分/析
+
+    Observable.create(new Observable.OnSubscriber<String>(){
+      @override
+      public void call (Subscriber<? super String> subscriber){
+        subscriber.onNext();
+        ///...
+      }
+    }).subscribe(new Subscriver<String>(){
+        @Override
+     public void onCompleted() {
+         System.out.println("completed!");
+     }
+     @Override
+     public void onError(Throwable e) {
+     }
+     @Override
+     public void onNext(String s) {
+         System.out.println(s);
+     }
+    });
+
+ 首先调用`Observable.create()`来创建一个`Observable`被观察者对象，需要一个`OnSubcriber`对象作为参数传入。创建一个观察者`Observer`/`Subscriver`作为`subcribe()`的参数传入，完成观察者与被观察者的关联，此时会执行创建`Observable`时传入的`onSubscriver`的`call()`方法。
+ 其中的角色有：
+* Observable---被观察者
+* Onsubscriber---一个包装对象，接收在`subscribe`订阅关系建立时被观察者通知观察者的方法。
+* Observer--观察
+    核心方法：
+* ***subscribe()***由被观察者发起，与观察者建立订阅关系。
+
+## 源码分析
+
+###  1、创建被观察者
+ > Observable.create()
+
+        public static <T> Observable<T> create(OnSubscribe<T> f) {
+          return new Observable<T>(RxJavaHooks.onCreate(f));
+        }
+ 创建了一个`Observable`对象，并以`RxJavaHooks.onCreate(f)`的返回值，一个`OnSubcriber`对象做为参数，这个对象直接被赋值为`Observable`中的`OnSubscribe`。
+ RxJavaHooks.onCreate()
+
+       public static <T> Observable.OnSubscribe<T> onCreate(Observable.OnSubscribe<T> onSubscribe) {
+          Func1<OnSubscribe, OnSubscribe> f = onObservableCreate;
+          if (f != null) {
+          return f.call(onSubscribe);
+          }
+          return onSubscribe;
+        }
+ `hook.onCreate()`直接返回了传入的`OnSubscribe`对象（此时onObservableCreate的返回值f为null）。
+ 创建被观察者的流程：`Observable.create()`方法构造了一个被观察者`Observable`对象，同时将new出来的`OnSubscribe`赋值给了该`Observable`的成员变量`onSubscribe`。
+
+### 2.Subscriber源码分析
+
+     public abstract class Subscriber<T> implements Observer<T>, Subscription {
+      private final SubscriptionList subscriptions;//订阅事件集，所有发送给当前Subscriber的事件都会保存在这里
+    
+      ...
+      protected Subscriber(Subscriber<?> subscriber, boolean shareSubscriptions) {
+        this.subscriber = subscriber;
+        this.subscriptions = shareSubscriptions && subscriber != null ? subscriber.subscriptions : new SubscriptionList();
+        }
+            ...
+      @Override
+      public final void unsubscribe() {
+        subscriptions.unsubscribe();
+      }
+    
+        @Override
+        public final boolean isUnsubscribed() {
+        return subscriptions.isUnsubscribed();
+      }
+      public void onStart() {
+            }
+            ...
+      }
+    
+    public interface Subscription {
+      void unsubscribe();
+      boolean isUnsubscribed();
+    }
+
+
+  Subscriber实现了Subscription接口，从而对外提供isUnsubscribed()和unsubscribe()方法。前者用于判断是否已经取消订阅；后者用于将订阅事件列表(也就是当前观察者的成员变量subscriptions)中的所有Subscription取消订阅，并且不再接受观察者Observable发送的后续事件。
+
+### 3、subscribe() 订阅
+
+
+    public final Subscription subscribe(Subscriber<? super T> subscriber) {
+       return Observable.subscribe(subscriber, this);
+    }
+    
+    static <T> Subscription subscribe(Subscriber<? super T> subscriber, Observable<T> observable) {
+    
+        ...
+    
+        subscriber.onStart();
+    
+        if (!(subscriber instanceof SafeSubscriber)) {
+            subscriber = new SafeSubscriber<T>(subscriber);
+        }
+    
+        try {
+            RxJavaHooks.onObservableStart(observable, observable.onSubscribe).call(subscriber);
+    
+            return RxJavaHooks.onObservableReturn(subscriber);
+        } catch (Throwable e) {
+            ...
+            return Subscriptions.unsubscribed();
+        }
+    }
+
+ ![Alt text](./27ee7393750e86a13baa092da9fbe4a2_b.jpg)
+
+## 二、操作符原理分析
+
+`map()`源码
+
+```java
+Observable.create(new Observable.OnSubscribe<Integer>() {
+    @Override
+    public void call(Subscriber<? super Integer> subscriber) {
+        subscriber.onNext(1);
+        subscriber.onCompleted();
+    }
+}).map(new Func1<Integer, String>() {
+    @Override
+    public String call(Integer integer) {
+        return "This is " + integer;
+    }
+}).subscribe(new Subscriber<String>() {
+    @Override
+    public void onCompleted() {
+        System.out.println("onCompleted!");
+    }
+    @Override
+    public void onError(Throwable e) {
+        System.out.println(e.getMessage());
+    }
+    @Override
+    public void onNext(String s) {
+        System.out.println(s);
+    }
+});
+```
+
+`map()`源码：
+
+```Java
+public final <R> Observable<R> map(Func1<? super T, ? extends R> func) {
+    return create(new OnSubscribeMap<T, R>(this, func));
+}
+```
+
+在`map()`中创建了新的Observable，新Observable中的OnSubscribeMap（OnSubscribe的实现类）是以map()中的Func1为参数的，即Func1中的`call()`方法将会在新的Observable订阅时被调用，订阅的对象为原`Observer`，此时OnSubscribeMap的onNext()方法（即Func的call）将会执行。
+
+`OnSubscribeMap`实现：
+
+```Java
+public final class OnSubscribeMap<T, R> implements OnSubscribe<R> {
+
+    final Observable<T> source;//ObservableA
+
+    final Func1<? super T, ? extends R> transformer;//map操作符中的转换函数Func1。T为转换前的数据类型，在上面的例子中为Integer；R为转换后的数据类型，在该例中为String。
+
+    public OnSubscribeMap(Observable<T> source, Func1<? super T, ? extends R> transformer) {
+        this.source = source;
+        this.transformer = transformer;
+    }
+
+    @Override
+    public void call(final Subscriber<? super R> o) {//结合第一小节的分析结果，我们知道这里的入参o其实就是我们自己new的观察者subscriberOne。
+        MapSubscriber<T, R> parent = new MapSubscriber<T, R>(o, transformer);
+        o.add(parent);
+        source.unsafeSubscribe(parent);
+    }
+
+    static final class MapSubscriber<T, R> extends Subscriber<T> {
+
+        final Subscriber<? super R> actual;//这里的actual就是我们在调用subscribe()时创建的观察者mSubscriber
+        final Func1<? super T, ? extends R> mapper;//变换函数
+        boolean done;
+
+        public MapSubscriber(Subscriber<? super R> actual, Func1<? super T, ? extends R> mapper) {
+            this.actual = actual;
+            this.mapper = mapper;
+        }
+
+        @Override
+        public void onNext(T t) {
+            R result;
+            try {
+                result = mapper.call(t);
+            } catch (Throwable ex) {
+                Exceptions.throwIfFatal(ex);
+                unsubscribe();
+                onError(OnErrorThrowable.addValueAsLastCause(ex, t));
+                return;
+            }
+            actual.onNext(result);
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            ...
+            actual.onError(e);
+        }
+
+        @Override
+        public void onCompleted() {
+            ...
+            actual.onCompleted();
+        }
+
+        @Override
+        public void setProducer(Producer p) {
+            actual.setProducer(p);
+        }
+    }
+}
+```
+
+![Alt text](73cd8869cb37e8f2d36b40e71724da19_r.jpg)
+
+### 三、线程调度原理分析
+
+`subscribeOn()`指定`Observable`处理的线程，`observeOn()`指定了`Observer`的`onNext()`,`onComplete()`,`onError()`执行的线程。
+
+```Java
+Observable.create(new Observable.OnSubscribe<String>() {
+    @Override
+    public void call(Subscriber<? super String> subscriber) {
+        subscriber.onNext("Hello RxJava!");
+        subscriber.onCompleted();
+    }
+}).subscribeOn(Schedulers.io())
+
+.observeOn(AndroidSchedulers.mainThread())
+
+.subscribe(new Subscriber<String>() {
+    @Override
+    public void onCompleted() {
+        System.out.println("completed!");
+    }
+  
+    @Override
+    public void onError(Throwable e) {
+      
+    }
+  
+    @Override
+    public void onNext(String s) {
+        System.out.println(s);
+    }
+});
+
+```
+
+### subscribeOn()源码
+
+```Java
+public final Observable<T> subscribeOn(Scheduler scheduler) {
+    ...
+    return create(new OperatorSubscribeOn<T>(this, scheduler));
+}
+```
+
+`subscribeOn()`返回了一个实现`OnSubscribe`的`OperatorSubscribeOn`对象
+
+***OperatorOnSubscribe()***源码：
+
+```
+作者：张磊(BaronZhang)
+链接：https://zhuanlan.zhihu.com/p/22338235
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
+
+    final Scheduler scheduler;//线程调度器，用来指定订阅事件发送、处理等所在的线程
+    final Observable<T> source;
+
+    public OperatorSubscribeOn(Observable<T> source, Scheduler scheduler) {
+        this.scheduler = scheduler;
+        this.source = source;
+    }
+
+    @Override
+    public void call(final Subscriber<? super T> subscriber) {
+        final Worker inner = scheduler.createWorker();
+        subscriber.add(inner);
+
+        inner.schedule(new Action0() {
+            @Override
+            public void call() {
+                final Thread t = Thread.currentThread();
+
+                Subscriber<T> s = new Subscriber<T>(subscriber) {
+                    @Override
+                    public void onNext(T t) {
+                        subscriber.onNext(t);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        try {
+                            subscriber.onError(e);
+                        } finally {
+                            inner.unsubscribe();
+                        }
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        try {
+                            subscriber.onCompleted();
+                        } finally {
+                            inner.unsubscribe();
+                        }
+                    }
+
+                    @Override
+                    public void setProducer(final Producer p) {
+                        subscriber.setProducer(new Producer() {
+                            @Override
+                            public void request(final long n) {
+                                if (t == Thread.currentThread()) {
+                                    p.request(n);
+                                } else {
+                                    inner.schedule(new Action0() {
+                                        @Override
+                                        public void call() {
+                                            p.request(n);
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                };
+                source.unsafeSubscribe(s);
+            }
+        });
+    }
+}
+```
+
