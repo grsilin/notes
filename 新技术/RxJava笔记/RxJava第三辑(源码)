@@ -225,6 +225,8 @@ public final class OnSubscribeMap<T, R> implements OnSubscribe<R> {
 
 `subscribeOn()`指定`Observable`处理的线程，`observeOn()`指定了`Observer`的`onNext()`,`onComplete()`,`onError()`执行的线程。
 
+***案例：***
+
 ```Java
 Observable.create(new Observable.OnSubscribe<String>() {
     @Override
@@ -252,10 +254,9 @@ Observable.create(new Observable.OnSubscribe<String>() {
         System.out.println(s);
     }
 });
-
 ```
 
-### subscribeOn()源码
+### 1、subscribeOn()原理
 
 ```Java
 public final Observable<T> subscribeOn(Scheduler scheduler) {
@@ -268,12 +269,7 @@ public final Observable<T> subscribeOn(Scheduler scheduler) {
 
 ***OperatorOnSubscribe()***源码：
 
-```
-作者：张磊(BaronZhang)
-链接：https://zhuanlan.zhihu.com/p/22338235
-来源：知乎
-著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
-
+```Java
 public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
 
     final Scheduler scheduler;//线程调度器，用来指定订阅事件发送、处理等所在的线程
@@ -343,4 +339,251 @@ public final class OperatorSubscribeOn<T> implements OnSubscribe<T> {
     }
 }
 ```
+
+通过传入的`Scheduler`创建一个`worker`，在`worker`中以传入的`Subscriber`作为参数，创建一个新的`Observable`,将当前线程作为参数调用原`Subscriber`的`onNext()`方法（也就是`onNext()`的执行是线程相关的）。最后用原`Observable`来订阅新的`Observable`，触发事件。
+
+`worker`是线程调度的直接操作对象，而它是通过传入的`scheduler`创建的下面来看一下`Scheduler.io()`返回的`ioScheduler`的过程：
+
+```java
+public static Scheduler io() {
+    return RxJavaHooks.onIOScheduler(getInstance().ioScheduler);
+}
+```
+
+创建`ioScheduler`
+
+```Java
+private Schedulers() {
+    ...
+    Scheduler io = hook.getIOScheduler();
+    if (io != null) {
+        ioScheduler = io;
+    } else {
+        ioScheduler = RxJavaSchedulersHook.createIoScheduler();
+    }
+    ...
+}
+//RxJavaSchedulersHook中：
+public static Scheduler createIoScheduler() {
+    return createIoScheduler(new RxThreadFactory("RxIoScheduler"));
+}
+  public static Scheduler createIoScheduler(ThreadFactory threadFactory) {
+      ...
+      return new CachedThreadScheduler(threadFactory);
+}
+```
+
+在`CachedThreadScheduler`中有`createWorker()`的实现：
+
+```java
+public Worker createWorker() {
+    return new EventLoopWorker(pool.get());
+}
+```
+
+可以看出`worker`的本质是`EventLoopWorker`，`worker`在`Observable`的`call()`方法中调用的`schedule()`方法就是在这里实现 的：
+
+```
+static final class EventLoopWorker extends Scheduler.Worker implements Action0 {
+    private final CompositeSubscription innerSubscription = new CompositeSubscription();
+    private final CachedWorkerPool pool;
+    private final ThreadWorker threadWorker;
+    final AtomicBoolean once;
+
+    EventLoopWorker(CachedWorkerPool pool) {
+        this.pool = pool;
+        this.once = new AtomicBoolean();
+        this.threadWorker = pool.get();
+    }
+
+    ...
+
+    @Override
+    public Subscription schedule(final Action0 action, long delayTime, TimeUnit unit) {
+        ...
+        ScheduledAction s = threadWorker.scheduleActual(new Action0() {
+            @Override
+            public void call() {
+                if (isUnsubscribed()) {
+                    return;
+                }
+                action.call();
+            }
+        }, delayTime, unit);
+        innerSubscription.add(s);
+        s.addParent(innerSubscription);
+        return s;
+    }
+}
+```
+
+`schedule()`方法实际是对`scheduleActual()`方法的包装：
+
+```Java
+public ScheduledAction scheduleActual(final Action0 action, long delayTime, TimeUnit unit) {
+    Action0 decoratedAction = RxJavaHooks.onScheduledAction(action);
+    ScheduledAction run = new ScheduledAction(decoratedAction);
+    Future<?> f;
+    if (delayTime <= 0) {
+        f = executor.submit(run);
+    } else {
+        f = executor.schedule(run, delayTime, unit);
+    }
+    run.add(f);
+    return run;
+}
+```
+
+`scheduleActual()`中的`ScheduledAction`实现了Runnable接口，通过线程池executor最终实现了线程切换。
+
+### observeOn()实现
+
+```java
+public final Observable<T> observeOn(Scheduler scheduler, boolean delayError, int bufferSize) {
+    ...
+    return lift(new OperatorObserveOn<T>(scheduler, delayError, bufferSize));
+}
+
+public final <R> Observable<R> lift(final Operator<? extends R, ? super T> operator) {
+    return create(new OnSubscribeLift<T, R>(onSubscribe, operator));
+}
+```
+
+`onserveOn`将传入的`scheduler`作为参数，创建一个`OperatorObserverOn`，并传递给`lift()`，在`lift()`中`OperatorObserveOn`又被创建 为`OnSubscribeLift`，进而创建一个新的`Observable`。
+
+```java
+public final class OnSubscribeLift<T, R> implements OnSubscribe<R> {
+
+    final OnSubscribe<T> parent;
+
+    final Operator<? extends R, ? super T> operator;
+
+    public OnSubscribeLift(OnSubscribe<T> parent, Operator<? extends R, ? super T> operator) {
+        this.parent = parent;
+        this.operator = operator;
+    }
+
+    @Override
+    public void call(Subscriber<? super R> o) {
+        try {
+            Subscriber<? super T> st = RxJavaHooks.onObservableLift(operator).call(o);
+            try {
+                st.onStart();
+                parent.call(st);
+            } catch (Throwable e) {
+                Exceptions.throwIfFatal(e);
+                st.onError(e);
+            }
+        } catch (Throwable e) {
+            Exceptions.throwIfFatal(e);
+            o.onError(e);
+        }
+    }
+}
+```
+
+`OnSubscribeLift`是`OnSubscribe`的实现类，它的`call()`将在它的对应的`Observable`订阅时被执行，在`call()`中调用了`OperatorObserveOn.call(Subscriber)`并返回了一个新的观察者`Subscriber `st，接着调用了前一级Observable对应`OnSubscriber.call(st)`。
+
+`observableLift`的`call（）`方法：
+
+```Java
+public Subscriber<? super T> call(Subscriber<? super T> child) {
+    ...
+    ObserveOnSubscriber<T> parent = new ObserveOnSubscriber<T>(scheduler, child, delayError, bufferSize);
+    parent.init();
+    return parent;
+}
+```
+
+OperatorObserveOn.call()中创建了一个ObserveOnSubscriber并调用init()进行了初始化。
+
+```Java
+static final class ObserveOnSubscriber<T> extends Subscriber<T> implements Action0 {
+
+    ...
+
+    @Override
+    public void onNext(final T t) {
+        ...
+        schedule();
+    }
+
+    @Override
+    public void onCompleted() {
+        ...
+        schedule();
+    }
+
+    @Override
+    public void onError(final Throwable e) {
+        ...
+        schedule();
+    }
+
+    protected void schedule() {
+        if (counter.getAndIncrement() == 0) {
+            recursiveScheduler.schedule(this);
+        }
+    }
+
+    @Override
+    public void call() {
+        long missed = 1L;
+        long currentEmission = emitted;
+
+        final Queue<Object> q = this.queue;
+        final Subscriber<? super T> localChild = this.child;
+        final NotificationLite<T> localOn = this.on;
+
+        for (;;) {
+            long requestAmount = requested.get();
+
+            while (requestAmount != currentEmission) {
+                boolean done = finished;
+                Object v = q.poll();
+                boolean empty = v == null;
+
+                if (checkTerminated(done, empty, localChild, q)) {
+                    return;
+                }
+
+                if (empty) {
+                    break;
+                }
+
+                localChild.onNext(localOn.getValue(v));
+
+                currentEmission++;
+                if (currentEmission == limit) {
+                    requestAmount = BackpressureUtils.produced(requested, currentEmission);
+                    request(currentEmission);
+                    currentEmission = 0L;
+                }
+            }
+
+            if (requestAmount == currentEmission) {
+                if (checkTerminated(finished, q.isEmpty(), localChild, q)) {
+                    return;
+                }
+            }
+
+            emitted = currentEmission;
+            missed = counter.addAndGet(-missed);
+            if (missed == 0L) {
+                break;
+            }
+        }
+    }
+
+    ...
+}
+```
+
+`ObserveOnSubscriber`继承了`Subscriver`并且实现了`Action0`，在`ObserveOnSubscriber`中进行线程调度的是`schedule()`方法：
+
+通过schedule()将新观察者ObserveOnSubscriber发送给subscriberOne的所有事件都切换到了recursiveScheduler所对应的线程，简单的说就是把subscriberOne的onNext()、onCompleted()、onError()方法丢到了recursiveScheduler对应的线程中来执行。
+
+`recursiveScheduler`实际上是一个`Worker`，`worker`的工作原理是创建runable，它的run方法调用了`OnserveOnSubscribe`的`call()`方法，然后把这个runable放到特定的线程池中执行。
+
+![Alt text](./6d030b666108c3de94d8aad85ddcaf4b_b.jpg)
 

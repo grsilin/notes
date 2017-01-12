@@ -1,0 +1,98 @@
+## 一、Lambda表达式
+
+Lambda表达式语法由参数列表、->和函数体组成。函数体既可以是一个表达式也可以是一个代码块。
+
+- 表达式：表达式会被执行然后返回结果。它简化掉了return关键字。
+- 代码块：顾名思义就是一坨代码，和普通方法中的语句一样。
+
+```Java
+(int x, int y) -> x + y  //接收x和y两个整形参数并返回他们的和
+() -> 66                 //不接收任何参数直接返回66
+(String name) -> {System.out.println(name);} //接收一个字符串然后打印出来
+(View view) -> {view.setText("lalala");}     //接收一个View对象并调用setText方法
+```
+
+## 二、目标类型
+
+编译器利用lambda表达式所在的上下文所期待的类型来推导表达式的类型，这个被期待的类型被称为目标类型，因此同样的lambda表达式在不同的上下文里有不同的类型。
+
+```java
+Runnable runnable = () -> doSomething();  //这个表达式是Runnable类型的
+Callback callback = () -> doSomething();  //这个表达式是Callback类型的
+```
+
+Lambda表达式的类型和目标类型的方法签名必须一致，编译器会对此做检查，一个lambda表达式要想赋值给目标类型T则必须满足下面所有的条件：
+
+- T是一个函数式接口
+- lambda表达式的参数必须和T的方法参数在数量、类型和顺序上一致（一一对应）
+- lambda表达式的返回值必须和T的方法的返回值一致或者是它的子类
+- lambda表达式抛出的异常和T的方法的异常一致或者是它的子类
+
+> 概念函数式接口:前面提到的OnClickListener接口只有一个方法，Java中大多数回调接口都有这个特征：比如Runnable和Comparator；我们把这些只拥有一个方法的接口称之为函数式接口。
+
+
+
+## 三、作用域
+
+在内部类中使用变量名和this非常容易出错。内部类通过继承得到的成员变量（包括来说object的）可能会把外部类的成员变量覆盖掉，未做限制的this引用会指向内部类自己而非外部类。
+
+而lambda表达式的语义就十分简单：它不会从父类中继承任何变量，也不用引入新的作用域。lambda表达式的参数及函数体里面的变量和它外部环境的变量具有相同的语义（this关键字也是一样）。
+
+```java
+public class HelloLambda {
+
+    Runnable r1 = () -> System.out.println(this);
+    Runnable r2 = () -> System.out.println(toString());
+
+    @Override
+    public String toString() {
+        return "Hello, lambda!";
+    }
+
+    public static void main(String[] args) {
+        new HelloLambda().r1.run();  
+        new HelloLambda().r2.run();
+    }
+}
+```
+
+## 四、变量捕获
+
+在Java7中只有被声明为final的变量才能被内部类引用，否则会产生编译错误，在Java8中允许在Lambda表达式中捕获符合有效只读的局部变量（如果一个局部变量在在初始化后没有被修改过，那么它就有效只读）但不能对捕获到的变量进行修改。
+
+```
+Runnable getRunnable(String name){
+    String hello = "hello";
+    return () -> System.out.println(hello+","+name);
+}
+```
+
+对于this的引用以及通过this对未限定字段的引用和未限定方法的调用本质上都属于使用final局部变量。包含此类引用的lambda表达式相当于捕获了this实例。在其他情况下，lambda对象不会保留任何对this的应用。
+
+## 五、方法引用
+
+lambda表达式允许我们定义一个匿名方法，并以函数式接口的方式使用它
+
+```java
+Comparator<User> comparator = 
+  Comparator.comparing(u -> u.getUserName());
+```
+
+用方法引用替换为
+
+```java
+Comparator<User> comparator = Comparator.comparing(User::getUserName);
+```
+
+对不同类型的方法引用方式：
+
+```java
+ClassName::methodName //静态方法引用：
+instanceReference::methodName //实例上的实例方法引用：
+super::methodName //超类上的实例方法引用
+ClassName::methodName //类型上的实例方法引用
+Class::new //构造方法引用
+TypeName[]::new //数组构造方法引用
+
+```
+

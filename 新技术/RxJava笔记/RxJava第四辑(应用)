@@ -1,0 +1,87 @@
+# RxJava应用实例
+
+## 一、	显示已安装app
+
+ 在`OnSubscribe()`方法中调用`getApplicationInfoList()`来获取所有的已安装的APP，通过`filter()`来过滤掉不需要展示的项目，`map()`操作符将直接获得的`ApplicationInfo`转换成`appInfo`，为避免ANR，由`subscribeOn()`指定这些耗时操作在子线程中进行，最后由`ObserveOn()`指定在UI线程中进行显示。
+
+核心代码：
+
+```
+final PackageManager pm = MainActivity.this.getPackageManager();
+Observable.create(new Observable.OnSubscribe<ApplicationInfo>() {
+        @Override
+        public void call(Subscriber<? super ApplicationInfo> subscriber) {
+            List<ApplicationInfo> infoList = getApplicationInfoList(pm);
+            for (ApplicationInfo info : infoList) {
+                subscriber.onNext(info);
+            }
+            subscriber.onCompleted();
+        }
+    }).filter(new Func1<ApplicationInfo, Boolean>() {
+        @Override
+        public Boolean call(ApplicationInfo applicationInfo) {
+            return (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) <= 0;
+        }
+    }).map(new Func1<ApplicationInfo, AppInfo>() {
+
+        @Override
+        public AppInfo call(ApplicationInfo applicationInfo) {
+            AppInfo info = new AppInfo();
+            info.setAppIcon(applicationInfo.loadIcon(pm));
+            info.setAppName(applicationInfo.loadLabel(pm).toString());
+            return info;
+        }
+    }).subscribeOn(Schedulers.io())
+    .observeOn(AndroidSchedulers.mainThread())
+    .subscribe(new Subscriber<AppInfo>() {
+        @Override
+        public void onCompleted() {
+            mAppListAdapter.notifyDataSetChanged();
+            mPullDownSRL.setRefreshing(false);
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            mPullDownSRL.setRefreshing(false);
+        }
+
+        @Override
+        public void onNext(AppInfo appInfo) {
+            mAppInfoList.add(appInfo);
+        }
+    });
+```
+
+## 二、 RxJava+Retrofit2实现获取天气数据
+
+Retrofit2定义接口：
+
+```java
+//获取city的ID
+@GET("city")
+Observable<String> getCityIdByName(@Query("cityName") 
+String cityName);
+```
+```Java
+//获取天气信息
+@GET("weather")
+Observable<Weather> getWeather(@Query("cityId") String cityId);
+```
+
+```java
+ApiClient.weatherService.getCityIdByName("上海")
+             .flatMap(new Func1<String, Observable<Weather>>() {
+                 @Override
+                 public Observable<Weather> call(String cityId) {
+                     return ApiClient.weatherService.getWeather(cityId);
+                 }
+             }).subscribeOn(Schedulers.io())
+             .observeOn(AndroidSchedulers.mainThread())
+             .subscribe(new Action1<Weather>() {
+                 @Override
+                 public void call(Weather weather) {
+                     weatherView.displayWeatherInformation(weather);
+                 }
+             });
+```
+
