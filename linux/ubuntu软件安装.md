@@ -46,3 +46,51 @@ php开发工具
 
 * htop
 进程管理替换
+
+* Monaco字体
+http://www.iplaysoft.com/top10-programming-fonts.html
+
+* uget
+下载软件
+```
+   sudo add-apt-repository ppa:maarten-baert/simplescreenrecorder
+
+   sudo apt-get update
+
+   sudo apt-get install simplescreenrecorder
+```
+* ClipIt
+剪贴板
+```
+ sudo add-apt-repository ppa:shantzu/clipit
+ 
+ sudo apt-get update
+ 
+ sudo apt-get install clipit
+```
+* Docky
+启动栏
+
+* aMule
+ed2k下载，也是比较好用的下载工具。
+
+* qBittorrent
+BT下载，个人觉得比Ubuntu自带的Transmission好用，功能全。
+
+* Zeal
+文档离线工具，和Mac上面的Dash功能相似，也是程序员必备的工具。
+
+* preload
+自适应预读守护进程
+
+* diffuse
+文件比较工具
+
+* Atom 插件
+apm install activate-power-mode
+
+* Thunderbird
+邮箱管理
+
+* zeal
+离线文档查看器
