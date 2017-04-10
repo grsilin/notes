@@ -1,45 +1,45 @@
-makefile������һϵ�еĹ�����ָ������Щ�ļ���Ҫ�ȱ��룬��Щ�ļ���Ҫ����룬��Щ�ļ���Ҫ���±��룬�����ڽ��и����ӵĹ��ܲ�������Ϊmakefile����һ��Shell�ű�һ��������Ҳ����ִ�в���ϵͳ�����
-Դ����������:Դ�ļ����Ȼ������м�Ŀ���ļ��������м�Ŀ���ļ�����ִ���ļ����ڱ���ʱ��������ֻ�������﷨���ͺ����������Ƿ��������������δ�������������������һ�����棬����������Object File���������ӳ���ʱ���������������е�Object File����Ѱ������ʵ�֣�����Ҳ������ǵ��ͻᱨ���Ӵ����루Linker Error����
-cc �Co  \  cc �Cc      ����ָ��
-���������ʽ�������޹��򣬱������壬�ļ�ָʾ��ע��
-��ʽ����ָ����Ҫ���ɵ��ļ����ļ�������
-���޹��򣺸����ļ����Զ��Ƶ�
-�������壺������ֵ����չ�������������õĵط�
-�ļ�ָʾ������makefile��
+﻿makefile定义了一系列的规则来指定，哪些文件需要先编译，哪些文件需要后编译，哪些文件需要重新编译，甚至于进行更复杂的功能操作，因为makefile就像一个Shell脚本一样，其中也可以执行操作系统的命令。
+源代码编译过程:源文件首先会生成中间目标文件，再由中间目标文件生成执行文件。在编译时，编译器只检测程序语法，和函数、变量是否被声明。如果函数未被声明，编译器会给出一个警告，但可以生成Object File。而在链接程序时，链接器会在所有的Object File中找寻函数的实现，如果找不到，那到就会报链接错误码（Linker Error）。
+cc –o  \  cc –c      编译指令
+五个规则：显式规则，隐晦规则，变量定义，文件指示，注释
+显式规则：指明需要生成的文件和文件的依赖
+隐晦规则：根据文件名自动推导
+变量定义：变量的值会扩展到变量被量引用的地方
+文件指示：引用makefile，
 
-ִ�в���
-1���������е�Makefile��
-2�����뱻include������Makefile��
-3����ʼ���ļ��еı�����
-4���Ƶ����޹��򣬲��������й���
-5��Ϊ���е�Ŀ���ļ�����������ϵ����
-6������������ϵ��������ЩĿ��Ҫ�������ɡ�
-7��ִ���������
+执行步骤
+1、读入所有的Makefile。
+2、读入被include的其它Makefile。
+3、初始化文件中的变量。
+4、推导隐晦规则，并分析所有规则。
+5、为所有的目标文件创建依赖关系链。
+6、根据依赖关系，决定哪些目标要重新生成。
+7、执行生成命令。
 
-Makefile�����е������[Tab]����ʼ��include������������Բ�����[Tab]��ͷ
-clean ϰ���������Ŀ���ļ��Ĺ���-rm target$(objects)  .PHONY ����һ��αĿ�ꡣ������ǰ��-��ʾ���Ը�������ֵĴ��󣬼�������֮������
-MakefileĿ¼������ǰĿ¼��
-1.���makeִ��ʱ���С�-I����--include-dir����������ômake�ͻ������������ָ����Ŀ¼��ȥѰ�ҡ�
-2.���Ŀ¼/include��һ���ǣ�/usr/local/bin��/usr/include�����ڵĻ���makeҲ��ȥ�ҡ�
+Makefile中所有的命令都以[Tab]键开始，include不属于命令，所以不能以[Tab]开头
+clean 习惯用来清空目标文件的规则。-rm target$(objects)  .PHONY 修饰一个伪目标。在命令前加-表示忽略该命令出现的错误，继续进行之后的命令。
+Makefile目录，除当前目录外
+1.如果make执行时，有“-I”或“--include-dir”参数，那么make就会在这个参数所指定的目录下去寻找。
+2.如果目录/include（一般是：/usr/local/bin或/usr/include）存在的话，make也会去找。
 
-����������MAKEFILES    �൱��include ��������MAKEFILES�е�	Ŀ�겻�ᱻmake�������еĴ���Ҳ�ᱻ���ԡ�
-��д����������ϵ+����Ŀ��ķ���
-Makefile��ֻ����һ���ռ�Ŀ�꣬������Ŀ�궼Ӧ���Ǳ����Ŀ�������������ģ�һ�㽫��һ�����򽫱�ȷ��Ϊ���չ���
-�﷨��targets:prerequisites ;command
-	command      ������Ҫ��[Tab��ͷ]
-ʹ��ͨ�������*������?���͡�[...]��
-��*����ʾ���ⳤ�ȵ��ַ����������������к͹�����ʹ�á�
-ͨ����ڱ����е�ʹ�÷�����objects := $(wildcard *.o)   wildcard  ��Makefile�Ĺؼ���
-�ļ���Ѱ��VPATH   ���ڱ�Ŀ¼�Ҳ�����Ҫ�ı���ʱ��make����뵽VPATH�����Ŀ¼��ȥѰ�ҡ�VPATH = src:../headers  
+环境变量：MAKEFILES    相当于include 区别在于MAKEFILES中的	目标不会被make，且其中的错误也会被忽略。
+书写规则：依赖关系+生成目标的方法
+Makefile中只能有一个终极目标，其它的目标都应该是被这个目标所连带出来的，一般将第一条规则将被确立为最终规则。
+语法：targets:prerequisites ;command
+	command      命令需要以[Tab开头]
+使用通配符：“*”，“?”和“[...]”
+“*”表示任意长度的字符串，可以在命令中和规则中使用。
+通配符在变量中的使用方法：objects := $(wildcard *.o)   wildcard  是Makefile的关键字
+文件搜寻：VPATH   当在本目录找不到需要的变量时，make会进入到VPATH定义的目录中去寻找。VPATH = src:../headers  
 
 vpath
-1.        vpath < pattern> < directories>    Ϊ����ģʽ< pattern>���ļ�ָ������Ŀ¼<directories>��
-2.        vpath < pattern>                              �������ģʽ< pattern>���ļ�������Ŀ¼��
-3.        vpath                                                 ��������ѱ����ú��˵��ļ�����Ŀ¼��
-vapthʹ�÷����е�< pattern>��Ҫ������%���ַ�����%������˼��ƥ����������ַ������磬��%.h����ʾ�����ԡ�.h����β���ļ���< pattern>ָ����Ҫ�������ļ�������< directories>��ָ���˵��ļ�����������Ŀ¼��
-  .PHONY   ָ��ĳ��Ŀ��ΪαĿ�꣬ͨ��ָ��Ŀ������αĿ��ִ�У�����ָ�������ļ���
-αĿ��ͬ������ָ��ΪĬ��Ŀ�ꡣ
-����  
+1.        vpath < pattern> < directories>    为符合模式< pattern>的文件指定搜索目录<directories>。
+2.        vpath < pattern>                              清除符合模式< pattern>的文件的搜索目录。
+3.        vpath                                                 清除所有已被设置好了的文件搜索目录。
+vapth使用方法中的< pattern>需要包含“%”字符。“%”的意思是匹配零或若干字符，例如，“%.h”表示所有以“.h”结尾的文件。< pattern>指定了要搜索的文件集，而< directories>则指定了的文件集的搜索的目录。
+  .PHONY   指定某个目标为伪目标，通过指定目标名让伪目标执行（可以指定依赖文件）
+伪目标同样可以指定为默认目标。
+例：  
  .PHONY: cleanall cleanobj cleandiff
  
    cleanall : cleanobj cleandiff
@@ -50,7 +50,7 @@ vapthʹ�÷����е�< pattern>��Ҫ������%���ַ�����%������˼��ƥ����������ַ������
  
    cleandiff :
            rm *.diff
-��makeclean�����������Ҫ��������ļ�����cleanobj���͡�cleandiff��������αĿ���е����ӳ��򡱵���˼�����ǿ������롰makecleanall���͡�make cleanobj���͡�makecleandiff���������ﵽ�����ͬ�����ļ���Ŀ��
-��Ŀ�꣺Ŀ��������ͬһ���ļ������������ɵ�����������ƶ��Ŀ����Խ���ϲ���ʹ���Զ�������    $@  ����ʾ��ǰ���������е�Ŀ��ļ��ϣ� ��
-�������⣩��̬ģʽ��target-parrtern��ָ����targets��ģʽ��Ҳ���ǵ�Ŀ�꼯ģʽ��
-�Զ����������ԣ�����C/C++��������֧��һ����-M����ѡ����Զ���ѰԴ�ļ��а�����ͷ�ļ���������һ��������ϵ��GUN C/C++����������Ϊ��-MM��,�����õ����Ե������⣬������׼�⣩ ��������Ϊÿһ��Դ�ļ����Զ����ɵ�������ϵ�ŵ�һ���ļ��У�Ϊÿһ����name.c�����ļ�������һ����name.d����Makefile�ļ���[.d]�ļ��оʹ�Ŷ�Ӧ[.c]�ļ���������ϵ��
+“makeclean”将清除所有要被清除的文件。“cleanobj”和“cleandiff”这两个伪目标有点像“子程序”的意思。我们可以输入“makecleanall”和“make cleanobj”和“makecleandiff”命令来达到清除不同种类文件的目的
+多目标：目标依赖于同一个文件，并且其生成的命令大体相似多个目标可以将其合并。使用自动化变量    $@  （表示当前规则中所有的目标的集合） 。
+（不理解）静态模式：target-parrtern是指明了targets的模式，也就是的目标集模式。
+自动生成依赖性：利用C/C++编译器都支持一个“-M”的选项，即自动找寻源文件中包含的头文件，并生成一个依赖关系（GUN C/C++编译器参数为”-MM”,否则会得到所以的依赖库，包括标准库） 。方法：为每一个源文件的自动生成的依赖关系放到一个文件中，为每一个“name.c”的文件都生成一个“name.d”的Makefile文件，[.d]文件中就存放对应[.c]文件的依赖关系。

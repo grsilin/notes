@@ -1,51 +1,51 @@
-git clone ��ָ����ַ��¡git�ֿ�
-git add ���޸����ӵ��ݴ���
-git commit �ύ�޸ĵ����زֿ�
-git push �����زֿ����͵�Զ�ֿ̲�
-git pull ��Զ�ֿ̲���ȡ
+﻿git clone 从指定地址克隆git仓库
+git add 将修改添加到暂存区
+git commit 提交修改到本地仓库
+git push 将本地仓库推送到远程仓库
+git pull 从远程仓库拉取
 git fetch
 git rebase
-git merge �ϲ���֧
-git branch ��֧����
-git checkout ���
-git reset �汾����
-git diff �Ա��ļ�
+git merge 合并分支
+git branch 分支操作
+git checkout 检出
+git reset 版本回退
+git diff 对比文件
 
-checkout�����÷����£�
+checkout命令用法如下：
 1.	git checkout [-q] [<commit>] [--] <paths> ...
-	��ָ����֧�ݴ����м���ļ���ʡ����Ϊ���ݴ����м��������֧�����ļ�����ͻʱ���� �C- �ָ�����ʾ���������ļ�����
-	commit������һ�������commit hashֵ��������ĳ����֧���ƣ���tag���ơ���֧��tag��������һ��commit hash
+	从指定分支暂存区中检出文件，省略则为从暂存区中检出。当分支名与文件名冲突时可用 –- 分隔，表示给定的是文件名。
+	commit可以是一个具体的commit hash值，可以是某个分支名称，或tag名称。分支或tag本质上是一个commit hash
 2.	git checkout [<branch>]
-	���ĳ��commit,��ʹHEAD���롰����ͷָ�롱״̬�����ݴ�����δ�ύ�����ݣ�ʹ�� -f ǿ���л���֧
-	�ڡ�����ͷָ�롱״̬ʱ�����л���ĳ����֧�������ڴ�״̬���л���֧�򴴽��µķ�֧
+	检出某个commit,会使HEAD进入“分离头指针”状态，当暂存区有未提交的内容，使用 -f 强行切换分支
+	在“分离头指针”状态时可以切换到某个分支，可以在此状态下切换分支或创建新的分支
 3. git checkout [-m] [ [-b | -- orphan ] <new_branch>]  [start_point]
-	git branch <new_branch> <start_point> ��ʾ��start_point�����µķ�֧��
-	ͬ��������git checkout -b <new_branch> <start_point>���
+	git branch <new_branch> <start_point> 表示从start_point创建新的分支。
+	同样可以用git checkout -b <new_branch> <start_point>完成
 	git checkout --datch <branch>
-	��ָ���л�������״̬���汾��Ϊbranch���һ���ύ�İ汾��
-	git checkout -B <branch> ǿ�ƴ�����֧���������ͬ����֧���串�ǡ�
-	git checkout --orphan <branch> ����һ������ķ�֧���ڵ�һ���ύǰ��HEADָ���������û��commitֵ��
-	�������֧����ȫ�������ݣ����ǲ�����֮ǰ���ύ��¼��
-	git checkout --merge <branch> �л���֧��ͬʱ���ڷ�֧�е��޸ı��浽��Ҫ�л��ķ�֧�У�
-	ԭ��֧�е��޸Ľ��ᱻɾ����
+	将指针切换至游离状态，版本号为branch最后一次提交的版本号
+	git checkout -B <branch> 强制创建分支，如果存在同名分支则将其覆盖。
+	git checkout --orphan <branch> 创建一个特殊的分支，在第一次提交前，HEAD指向的引用中没有commit值。
+	在这个分支中有全部的内容，但是不会有之前的提交记录。
+	git checkout --merge <branch> 切换分支，同时将在分支中的修改保存到需要切换的分支中，
+	原分支中的修改将会被删除。
 	git checkout -p <branch>
-	�Ƚ�������֧������ݲ��죬Ҳ���������Ƚ������ļ��������ɲ�����
+	比较两个分支间的内容差异，也可以用来比较两个文件，并生成补丁。
 
-diff ���
-	git diff �Ƚϵ��ǹ��������ݴ����Ĳ��
-	git diff --cached �Ƚϵ����ݴ����Ͱ汾��Ĳ��
-	git diff HEAD ���Բ鿴�������Ͱ汾��Ĳ��
+diff 命令：
+	git diff 比较的是工作区和暂存区的差别
+	git diff --cached 比较的是暂存区和版本库的差别
+	git diff HEAD 可以查看工作区和版本库的差别
 	
-�汾�⡢���������ݴ���
+版本库、工作区、暂存区
 
 
 tags
 
 
 
-git ��  svn �Ĳ��
-1��	git�Ƿֲ�ʽ�İ汾����ϵͳ����ÿ̨�����϶��������Ĵ���⣬������û�������������ύ�����
-2��	GIT�����ݰ�Ԫ���ݷ�ʽ�洢����SVN�ǰ��ļ�
-3��	GIT��֧��SVN�ķ�֧��ͬ
-4��	GITû��һ��ȫ�ֵİ汾�ţ���SVN��
-5��	GIT������������Ҫ����SVN
+git 和  svn 的差别
+1、	git是分布式的版本管理系统。在每台主机上都有完整的代码库，可以在没有网络的情况下提交代码等
+2、	GIT把内容按元数据方式存储，而SVN是按文件
+3、	GIT分支和SVN的分支不同
+4、	GIT没有一个全局的版本号，而SVN有
+5、	GIT的内容完整性要优于SVN

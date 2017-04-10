@@ -1,6 +1,6 @@
-diff&patch
+﻿diff&patch
 http://yangzb.iteye.com/blog/609618
-Android��������
+Android增量升级
 http://www.cnblogs.com/y041039/articles/2411600.html
 git patch
 http://blog.csdn.net/lmj623565791/article/details/52761658
@@ -8,72 +8,72 @@ http://blog.csdn.net/lmj623565791/article/details/52761658
 
 
 
-diff��patch:
-diff�Ĺ��ܾ��������Ƚ������ļ����ļ��еĲ�ͬ��Ȼ���¼������
-	diff [ѡ��] Դ�ļ�(��) Ŀ���ļ����У�����Դ�ļ�(��) ���������ʹ֮��Ϊ
-	ѡ�
-		-r �ݹ飬diff�Ὣ����Ŀ¼�ڵ����ж�Ӧ�ļ�(�������ļ���)���бȽ�
-		-N ȷ�������ļ���ȷ�Ĵ����Ѿ�������ɾ�����ļ�
-		-u ��ͳһ��ʽ���������ļ�
-	patch�Ĺ���������diff�����Ĳ���ʵ��Դ�ļ�(��)��Ŀ���ļ�(��)�Ļ���ת��
-	patch Ŀ���ļ�(��)  < filename.patch
-	-p0 �ӵ�ǰĿ¼����Ŀ���ļ�
-	-p1 ���Ե���һ��Ŀ¼���ӵ�ǰĿ¼��ʼ����
-	-E ɾ�����ļ�
-	-R ���°汾�򲹶���ʹ�����ϰ汾
+diff与patch:
+diff的功能就是用来比较两个文件或文件夹的不同，然后记录下来。
+	diff [选项] 源文件(夹) 目标文件（夹），给源文件(夹) 打个补丁，使之成为
+	选项：
+		-r 递归，diff会将两个目录内的所有对应文件(包括子文件夹)进行比较
+		-N 确保补丁文件正确的处理已经创建或删除的文件
+		-u 以统一格式创建补丁文件
+	patch的功能是利用diff制作的补丁实现源文件(夹)与目标文件(夹)的互相转换
+	patch 目标文件(夹)  < filename.patch
+	-p0 从当前目录查找目的文件
+	-p1 忽略掉第一层目录，从当前目录开始查找
+	-E 删除空文件
+	-R 给新版本打补丁，使其变成老版本
 
-path�ļ��ĸ�ʽ
-	����ͷ�Ƿֱ���---/+++��ͷ�����У�������ʾҪ�򲹶����ļ���---��ͷ��ʾ���ļ���+++��ͷ��ʾ���ļ���
-	һ�������ļ��п��ܺ��ж������������ж��---/+++��ͷ�Ľڣ�ÿһ��������һ��������
-	�飺������Ҫ�޸ĵĵط�����@@��ͷ����������һ����Ŀ�ʼ��һ���µĲ���ͷ
-	��ĵ�һ�У�++��ʾ���������������ݣ�--��ʾ������Ҫɾ��
+path文件的格式
+	补丁头是分别由---/+++开头的两行，用来表示要打补丁的文件，---开头表示旧文件，+++开头表示新文件。
+	一个补丁文件中可能含有多个补丁，则会有多个---/+++开头的节，每一节用来打一个补丁。
+	块：补丁中要修改的地方，以@@开头，结束于另一个块的开始或一个新的补丁头
+	块的第一列：++表示本行是新增的内容，--表示本行需要删除
 	
-ʹ�ã�
-	diff���ɲ�����path�ϲ�����
-	���ļ���
+使用：
+	diff生成补丁，path合并补丁
+	单文件：
 		diff -Nu file1 file2 >>file.patch
 		patch -p0 < file.patch
-		�ָ��ɰ汾��patch -RE -p0 <file.patch
-	����ļ���
+		恢复旧版本：patch -RE -p0 <file.patch
+	多个文件：
 	diff -uNr prj0 prj1 > prj.patch
-	(r)ѡ�����ļ����ڵ��������ݽ��бȽϣ�ͬʱ����������������ļ����ж����---/+++��ͷ�Ľڣ�
+	(r)选项会对文件夹内的所有内容进行比较，同时产生多个补丁会在文件中有多个以---/+++开头的节）
 	patch -p1 <prj.patch
 	patch -p1 <prj.patch
 	
-	path��ɺ�ʹ�� find -name *.rej ���Բ鿴���ܾ�ִ�е��ļ�
+	path完成后使用 find -name *.rej 可以查看到拒绝执行的文件
 	
-git��patch����
-	1������diff ���ɱ�׼��patch
-	git diff�鿴���죬����Ա�׼��patch��ʽ�����������ֱ�ӽ����������Ϊpatch�ļ�
-	git diff master > patch         ����patch�ļ�
-	git apply patch   Ӧ��patch
-	2��git format-patch����gitר�ò���
+git的patch功能
+	1、利用diff 生成标准的patch
+	git diff查看差异，结果以标准的patch形式输出，可以用直接将此输出保存为patch文件
+	git diff master > patch         生成patch文件
+	git apply patch   应用patch
+	2、git format-patch生成git专用补丁
 	git format-patch -M branchname
-	����֧��ָ����֧�Ƚϣ�����patch�ļ�����patch�в�����patch��Ϣ�����а汾�ţ��ύ�ߣ�ʱ��ȡ�
-	�����֧�д��ڶ���ύ�������ÿ���ύ��������һ��patch
-	ʹ��git am ��Ӧ��git format-patch ���ɵ�patch�ļ�����Ӧ��ʱ�Ὣpatch�м�¼�Ŀ����ߵ����ּ�¼�ڰ汾����
+	本分支和指定分支比较，生成patch文件。在patch中不仅有patch信息，还有版本号，提交者，时间等。
+	如果分支中存在多次提交，则针对每次提交都会生成一个patch
+	使用git am 来应用git format-patch 生成的patch文件，在应用时会将patch中记录的开发者的名字记录在版本库中
 	
-apk����������Ҫ���裺
-	1��	����old.apk��new.apk��������
-	2��	�û��ֻ�����ȡ��ǰ��װӦ�õ�apk
-	3��	�����ļ���2�еľ�apk�ϲ���Ȼ��װ
-	ʵ�֣�
-	1�����ù����������Ƶ�һ��diff��patch     (bsdiff/Xdelta�ȹ���)
+apk增量升级主要步骤：
+	1、	利用old.apk和new.apk生成增量
+	2、	用户手机上提取当前安装应用的apk
+	3、	增量文件与2中的旧apk合并，然后安装
+	实现：
+	1、利用工具做二进制的一个diff和patch     (bsdiff/Xdelta等工具)
 	/bsdiff old.apk new apk oldtonewpatch.patch
-	2���ڿͻ�����old.apk ��oldtoewpath.patch�ϲ�����apk
+	2、在客户端用old.apk 和oldtoewpath.patch合并成新apk
 	./bspatch old.apk new.pak oldtonewpath.patch
-	�ϲ�patch,����new.apk
-	3����װnew.apk
-	��ȡ��ǰapk:
+	合并patch,生成new.apk
+	3、安装new.apk
+	提取当前apk:
 	
 	context=context.getApplicaitonContext();
 	ApplicationInfo applicationInfo=context.getApplicationInfo();
 	String apkPath=applicationInfo.sourcePath;
-	ʹ��ApplicationInfo��ȡ����ǰapk���ڵ�·��
+	使用ApplicationInfo获取到当前apk所在的路径
 	
-	����bspathc��so,�ڱ��ط�����ʹ��bspatch����new.apk������c/c++������ʵ�ּ�ndk����
-	���¹��̣�������java���������ط���������.h�ļ�����ȡ���Ϲ淶�ķ���������c/c++��ʵ�ֶ���ķ���������c/c++���뻷��������so�ļ���
-	����so����java�е����ط�����
+	制作bspathc的so,在本地方法中使用bspatch生成new.apk，调用c/c++方法的实现见ndk开发
+	大致过程：首先在java中声明本地方法，生成.h文件，获取符合规范的方法名，在c/c++中实现定义的方法，配置c/c++编译环境，生成so文件，
+	引入so，在java中调本地方法。
 	
 	
 	

@@ -1,2 +1,2 @@
-使用Git Hooks实现开发部署任务自动化
+锘夸娇鐢℅it Hooks瀹炵幇寮�鍙戦儴缃蹭换鍔¤嚜鍔ㄥ寲
 http://blog.csdn.net/zstack_org/article/details/53100257

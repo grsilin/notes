@@ -1,46 +1,46 @@
-һ���߼�������
+﻿一：逻辑卷管理
 https://www.dwhd.org/20150521_225146.html
-LVM  Logical Volume Manager���߼���������:��Linuxϵͳ���ü򵥵������й���һ���������߼�������Ӳ�̻����ת��Ϊ�����������߼���ʽ�γ�һ�����飬�������ﴴ����ͬ�ķ����ļ����γ��߼�����
-������fdisk Ӳ�̷������������(�˴�Ϊһ�������ϵķ���)
-p��ӡ��ǰ�����ϵķ���
-n �½�����
-�������ͣ�eΪ��չ������pΪ������
-���÷�����ʼ�鼰������С
-t  �ı��������8eΪlvm
+LVM  Logical Volume Manager（逻辑卷管理）:在Linux系统上用简单的命令行管理一个完整的逻辑卷。将硬盘或分区转换为物理卷，以逻辑形式形成一个卷组，从容器里创建不同的分区文件，形成逻辑卷。
+操作：fdisk 硬盘分区管理的命令。(此处为一般意义上的分区)
+p打印当前磁盘上的分区
+n 新建分区
+分区类型：e为扩展分区，p为主分区
+设置分区起始块及分区大小
+t  改变分区类型8e为lvm
 
-partx ���� һ�����̻��߷��������ͣ����Խ��������������ǶԷ������в�����ֻ�Ǹ����ں˵�ǰ�ں˵ķ��������
--a �������ķ��� �Cd ɾ���ķ���   -l �г����еķ���
+partx ：对 一个磁盘或者分区表类型，尝试解析分区表。不是对分区进行操作，只是告诉内核当前内核的分区情况。
+-a 读新增的分区 –d 删除的分区   -l 列出所有的分区
 
-������������Ӳ�̴���Ϊ������(pv) 
-pvcreate /dev/sdb1 /dev/sdb2 /dev/sdb3�ȼ���pvcreate /dev/sdb{1,2,3} 
+将物理分区与硬盘创建为物理卷(pv) 
+pvcreate /dev/sdb1 /dev/sdb2 /dev/sdb3等价于pvcreate /dev/sdb{1,2,3} 
 
-�鿴��ǰ���е�pv:   pvs
+查看当前所有的pv:   pvs
 
-������������Ϊ����(vg) ��vgcreate VGtest /dev/sdb{1,2,3}
+将物理卷创建为卷组(vg) ：vgcreate VGtest /dev/sdb{1,2,3}
 
-�ھ����ﴴ���߼���
+在卷组里创建逻辑卷
 lvcreate  -L 2G -n LVtest1 VGtest
-#����ΪVGtest��VG�ϴ���һ����ΪLVtest1 ��СΪ2G���߼���
-��ʽ����
+#在名为VGtest的VG上创建一个名为LVtest1 大小为2G的逻辑卷
+格式化：
 mke2fs -t ext4 /dev/VGtest/LVtest1
-��ʽ���½���LVtest1�߼���Ϊext4��ʽ
-���أ�
+格式化新建的LVtest1逻辑卷为ext4格式
+挂载：
 mount /dev/VGtest/LVtest1 /LVtest1
-��/dev/VGtest/LVtest1����߼������ص�/LVtest1Ŀ¼��
+将/dev/VGtest/LVtest1这个逻辑卷挂载到/LVtest1目录上
 
-��Ӳ����д�����ݵ�ģʽ��
-����ģʽ(linear):	�������������ʹ��
-����ģʽ(triped):	ÿһ�����ݲ���������ݣ��ֱ�д��������������
-�߼�����Ĭ�Ϲ���ģʽ��linear��
+向硬盘中写入数据的模式：
+线性模式(linear):	即逐个物理分区使用
+交错模式(triped):	每一笔数据拆成两个部份，分别写入两个物理分区
+逻辑卷的默认工作模式是linear的
 
 
-����һ���������ռ�
-1��	Ӳ�̷�����fdisk
-2��	���뵽�������� pvcreate
-3��	��չ����vgextend
-4��	�߼�������lvextend -L +2G /dev/VGtest/LVtest1
-5��	ͨ�� resize2fs �����ļ�ϵͳ������resize2fs -p /dev/VGtest/LVtest1
+场景一：扩大卷组空间
+1、	硬盘分区：fdisk
+2、	加入到物理卷中 pvcreate
+3、	扩展卷组vgextend
+4、	逻辑卷扩容lvextend -L +2G /dev/VGtest/LVtest1
+5、	通过 resize2fs 添加文件系统的容量resize2fs -p /dev/VGtest/LVtest1
 
-�������������߼���
-��ж�غ�������ȷ��������Ŀռ��С��Ȼ�ܴ洢ԭ�е���������
- ������֮ǰӦ����ǿ�м���ļ�����ȷ���ļ�ϵͳ����һ����״̬
+场景二：缩减逻辑卷
+先卸载后缩减，确保缩减后的空间大小依然能存储原有的所有数据
+ 在缩减之前应该先强行检查文件，以确保文件系统处于一至性状态
