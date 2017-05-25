@@ -1,20 +1,20 @@
-### Gson的使用
+# Gson的使用
 
-#### 导入
+## 导入
 
 在 Android Studio 中导入 Gson
 
 > File > Project Structure > add Libary Dependencies > gson
 
-```
+```java
 public class {
-  
+
 }
 ```
 
 
 
-#### 将对象转为JSON格式的字符串
+## 将对象转为JSON格式的字符串
 
 ```Java
 Gson gson = new Gson();
@@ -27,11 +27,6 @@ String jsonStrWithType=gson.toJson(person);
 
 Gson提供`toJson()`方法将对象转换成Json字符串。
 
-#### 将List转为JSON格式的字符串
-
-```
-
-```
-
+## 将List转为JSON格式的字符串
 
 
